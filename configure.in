@@ -1,0 +1,37 @@
+AC_INIT(certdaysremaining.c)
+PRODUCT=certdaysremaining
+VERSION=1.0
+AC_CONFIG_HEADER(config.h)
+AC_PROG_CC
+AC_DEFINE_UNQUOTED(PRODUCT, "$PRODUCT")
+AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
+AC_SUBST(PRODUCT)
+AC_SUBST(VERSION)
+
+LDFLAGS="$LDFLAGS -L/usr/local/lib -L/usr/local/opt/openssl/lib/"
+CFLAGS="$CFLAGS -I/usr/local/include -I/usr/local/opt/openssl/include/"
+CPPFLAGS="$CPPFLAGS -I/usr/local/include -I/usr/local/opt/openssl/include/"
+
+dnl Checks for programs.
+AC_PROG_CC
+if test $CC = "gcc"; then
+	CFLAGS="$CFLAGS -Wall"
+fi
+AC_PROG_INSTALL
+AC_PROG_LN_S
+
+dnl Checks for libraries.
+AC_CHECK_FUNC([ASN1_TIME_to_generalizedtime], [:],[AC_CHECK_LIB([crypto], [ASN1_TIME_to_generalizedtime], ,AC_MSG_ERROR([can't find libcrypto]))])
+AC_CHECK_FUNC([SSL_library_init], [:],[AC_CHECK_LIB([ssl], [SSL_library_init], ,AC_MSG_ERROR([can't find libssl]))])
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(limits.h unistd.h netinet/in.h netdb.h arpa/inet.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+
+dnl Checks for library functions.
+AC_TYPE_SIGNAL
+
+AC_OUTPUT(Makefile)
