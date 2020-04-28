@@ -17,8 +17,7 @@
 #define min(a, b) (((a) < (b))?(a):(b))
 
 void usage(char *progname) {
-  fprintf(stderr, "Usage: %s -h <host> [-p <port>] [-c <filename for cert listing>]\n", progname);
-  fprintf(stderr, "\t[-P <pem filename for cert dump>] [-C (dump entire certificate chain)]\n");
+  fprintf(stderr, "Usage: %s -h <host> [-p <port>]\n", progname);
 }
 
 typedef struct readlinebuf_s {
@@ -179,49 +178,18 @@ int main(int argc, char *argv[]) {
   SSL_CTX *my_ssl_context;
   SSL *myssl;
   X509 *peer_cert;
-  int i;
-  X509_EXTENSION *ex;
-  STACK_OF(GENERAL_NAME) *alt;
-  STACK_OF(X509) *cert_chain;
-  int n;
-  unsigned char *sn;
-  int sl;
-  GENERAL_NAME *gn;
 
-  X509_NAME *xn;
-  char buf[8192];
-
-  BIO *text_outfile=NULL;
-  BIO *outfile=NULL;
-
-  int ret;
-
-  int r;
-
-
-  int o;
+  int ret, r, o;
   char *host=NULL;
   char *port="443";
-  char *certfilename=NULL;
-  char *pemfilename=NULL;
-  int savechain=0;
 
-  while ((o=getopt(argc, argv, "h:p:c:CP:u:K:"))!=-1) {
+  while ((o=getopt(argc, argv, "h:p:"))!=-1) {
     switch (o) {
     case 'h':
       host=optarg;
       break;
     case 'p':
       port=optarg;
-      break;
-    case 'c':
-      certfilename=optarg;
-      break;
-    case 'C':
-      savechain=1;
-      break;
-    case 'P':
-      pemfilename=optarg;
       break;
     default:
       usage(argv[0]);
@@ -262,93 +230,19 @@ int main(int argc, char *argv[]) {
     return -7;
   }
 
-  if (certfilename) {
-    text_outfile=BIO_new(BIO_s_file());
-    if (BIO_write_filename(text_outfile, certfilename) <= 0) {
-      perror(certfilename);
-      BIO_free(text_outfile);
-      text_outfile=NULL;
-    }
-  }
-
-  if (pemfilename) {
-    outfile=BIO_new(BIO_s_file());
-
-    if (BIO_write_filename(outfile, pemfilename) <= 0) {
-      perror(pemfilename);
-      BIO_free(outfile);
-      outfile=NULL;
-    }
-  }
 
   if ((peer_cert=SSL_get_peer_certificate(myssl))) {
-    ASN1_GENERALIZEDTIME *agt;
-    ASN1_TIME_to_generalizedtime(peer_cert->cert_info->validity->notAfter, &agt);
+    ASN1_GENERALIZEDTIME *agt = NULL;
+    const ASN1_TIME *at = X509_get0_notAfter(peer_cert);
+    ASN1_TIME_to_generalizedtime(at, &agt);
     time_t endtime=ASN1_GENERALIZEDTIME_2ilb(agt);
     time_t now=time(NULL);
     long remainingdays = (endtime - now) / 86400;
     printf("%ld\n", remainingdays);
-
-    if (!savechain) {
-      if (text_outfile)
-	X509_print(text_outfile, peer_cert);
-      if (outfile)
-	PEM_write_bio_X509(outfile,peer_cert);
-    }
-    else {
-      if ((cert_chain=SSL_get_peer_cert_chain(myssl))!=NULL) {
-	for (i=0; i<sk_X509_num(cert_chain); i++) {
-	  if (text_outfile) {
-	    xn=X509_get_subject_name(sk_X509_value(cert_chain,i));
-	    if (X509_NAME_get_text_by_NID(xn, NID_commonName, buf, sizeof(buf)) != -1)
-	      BIO_printf(text_outfile, "## CN=%s\n", buf);
-	    else
-	      BIO_printf(text_outfile, "## CN=<unknown>\n");
-	    X509_print(text_outfile, sk_X509_value(cert_chain,i));
-	  }
-	  if (outfile)
-	    PEM_write_bio_X509(outfile, sk_X509_value(cert_chain,i));
-	}
-      }
-    }
-
-    xn=X509_get_subject_name(peer_cert);
-    if (X509_NAME_get_text_by_NID(xn, NID_commonName, buf, sizeof(buf)) != -1) {
-      // printf("subject common name is \"%s\"\n", buf);
-    } else {
-      printf("X509_NAME_get_text_by_NID() failed\n");
-    }
-    if ((i=X509_get_ext_by_NID(peer_cert, NID_subject_alt_name, -1))>=0) {
-      ex=X509_get_ext(peer_cert, i);
-      if ((alt=X509V3_EXT_d2i(ex))) {
-	n=sk_GENERAL_NAME_num(alt);
-	for (i=0; i<n; i++) {
-	  gn=sk_GENERAL_NAME_value(alt, i);
-	  if (gn->type == GEN_DNS) {
-	    sn=ASN1_STRING_data(gn->d.ia5);
-	    sl=ASN1_STRING_length(gn->d.ia5);
-	    // printf("%d: \"%s\" (%d)\n", i, sn, sl);
-	  } else {
-	    // printf("%d: type=%d\n", i, gn->type);
-	  }
-	}
-	// method = X509V3_EXT_get(ex);
-	// if (method) method->ext_free(alt);
-      }
-      else
-	fprintf(stderr, "X509V3_EXT_d2i() failed.\n");
-    }
-    X509_free(peer_cert);
-  } else
-    fprintf(stderr, "SSL_get_peer_certificate() failed.\n");
-  
-  if (text_outfile)
-    BIO_free(text_outfile);
-  if (outfile)
-    BIO_free(outfile);
-  
-  fflush(stdout);
-  fflush(stderr);
+  } else {
+    fprintf(stderr, "No certificate\n");
+    printf("-1\n");
+  }
 
   r=SSL_shutdown(myssl);
   if (r != 0 && r!=1)

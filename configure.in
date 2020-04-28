@@ -22,7 +22,7 @@ AC_PROG_LN_S
 
 dnl Checks for libraries.
 AC_CHECK_FUNC([ASN1_TIME_to_generalizedtime], [:],[AC_CHECK_LIB([crypto], [ASN1_TIME_to_generalizedtime], ,AC_MSG_ERROR([can't find libcrypto]))])
-AC_CHECK_FUNC([SSL_library_init], [:],[AC_CHECK_LIB([ssl], [SSL_library_init], ,AC_MSG_ERROR([can't find libssl]))])
+AC_CHECK_FUNC([OPENSSL_init_ssl], [:],[AC_CHECK_LIB([ssl], [OPENSSL_init_ssl], ,AC_MSG_ERROR([can't find libssl]))])
 
 dnl Checks for header files.
 AC_HEADER_STDC
