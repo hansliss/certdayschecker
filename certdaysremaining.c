@@ -17,7 +17,7 @@
 #define min(a, b) (((a) < (b))?(a):(b))
 
 void usage(char *progname) {
-  fprintf(stderr, "Usage: %s -h <host> [-p <port>]\n", progname);
+  fprintf(stderr, "Usage: %s -h <host> [-p <port>] [-H (set TLS hostname)]\n", progname);
 }
 
 typedef struct readlinebuf_s {
@@ -182,14 +182,18 @@ int main(int argc, char *argv[]) {
   int ret, r, o;
   char *host=NULL;
   char *port="443";
+  int set_tls_hostname=0;
 
-  while ((o=getopt(argc, argv, "h:p:"))!=-1) {
+  while ((o=getopt(argc, argv, "h:p:H"))!=-1) {
     switch (o) {
     case 'h':
       host=optarg;
       break;
     case 'p':
       port=optarg;
+      break;
+    case 'H':
+      set_tls_hostname=1;
       break;
     default:
       usage(argv[0]);
@@ -224,6 +228,13 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Error connecting to server\n");
   }
   SSL_set_bio(myssl, conn, conn);
+
+  if (set_tls_hostname) {
+    if (!SSL_set_tlsext_host_name(myssl, host)) {
+      fprintf(stderr, "SSL_set_tlsext_host_name() failed\n");
+      return -8;
+    }
+  }
 
   if ((ret=SSL_connect(myssl))!=1) {
     fprintf(stderr,"SSL_connect() returned %d: %s: %s\n", ret, ERR_error_string(ERR_get_error(), NULL), ERR_error_string(SSL_get_error(myssl, ret), NULL));
