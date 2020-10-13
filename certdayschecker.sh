@@ -6,7 +6,7 @@ export PATH=$PATH:/usr/local/bin
 OFS="$IFS"
 IFS=":"
 sed 's/#.*$//' $CONFFILE | grep "^[^:]*:[^:]*:[^:]*$" | while read name host port; do
-     n=`certdaysremaining -h $host -p $port`
+     n=`certdaysremaining -h $host -p $port -H`
      message=
      if [ ! -z "$n" ]; then
      	if [ "$n" -eq 60 ]; then
